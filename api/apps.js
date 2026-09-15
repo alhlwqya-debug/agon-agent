@@ -1,4 +1,5 @@
 import supabase from './db-client.js';
+import { requireAdmin } from './_auth.js';
 
 function normalizeArray(v) {
   if (v == null) return [];
@@ -16,11 +17,7 @@ function normalizeArray(v) {
 
 function normalizeApp(a) {
   if (!a) return a;
-  return {
-    ...a,
-    screenshots: normalizeArray(a.screenshots),
-    tags: normalizeArray(a.tags),
-  };
+  return { ...a, screenshots: normalizeArray(a.screenshots), tags: normalizeArray(a.tags) };
 }
 
 function normalizeApps(arr) {
@@ -36,10 +33,8 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const includeHidden = req.query.include_hidden === 'true';
-      let query = supabase
-        .from('apps')
-        .select('*, category:categories(*)')
-        .order('created_at', { ascending: false });
+      if (includeHidden && !(await requireAdmin(req, res))) return;
+      let query = supabase.from('apps').select('*, category:categories(*)').order('created_at', { ascending: false });
       if (!includeHidden) query = query.eq('is_hidden', false);
       const { data, error } = await query;
       if (error) throw error;
@@ -47,6 +42,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      if (!(await requireAdmin(req, res))) return;
       const body = req.body || {};
       const payload = {
         slug: body.slug,
@@ -58,7 +54,6 @@ export default async function handler(req, res) {
         version: body.version ?? '1.0.0',
         size_mb: Number(body.size_mb) || 0,
         icon_url: body.icon_url ?? '',
-        // store arrays as JSON strings (text columns)
         screenshots: JSON.stringify(body.screenshots ?? []),
         download_url: body.download_url ?? '',
         download_count: Number(body.download_count) || 0,
@@ -71,32 +66,25 @@ export default async function handler(req, res) {
         is_hidden: !!body.is_hidden,
         updated_at: new Date().toISOString(),
       };
-      const { data, error } = await supabase
-        .from('apps')
-        .insert(payload)
-        .select('*, category:categories(*)')
-        .single();
+      const { data, error } = await supabase.from('apps').insert(payload).select('*, category:categories(*)').single();
       if (error) throw error;
       return res.status(201).json(normalizeApp(data));
     }
 
     if (req.method === 'PUT') {
+      if (!(await requireAdmin(req, res))) return;
       const { id, ...rest } = req.body || {};
       if (!id) return res.status(400).json({ error: 'id is required' });
       const update = { ...rest, updated_at: new Date().toISOString() };
       if (Array.isArray(update.screenshots)) update.screenshots = JSON.stringify(update.screenshots);
       if (Array.isArray(update.tags)) update.tags = JSON.stringify(update.tags);
-      const { data, error } = await supabase
-        .from('apps')
-        .update(update)
-        .eq('id', id)
-        .select('*, category:categories(*)')
-        .single();
+      const { data, error } = await supabase.from('apps').update(update).eq('id', id).select('*, category:categories(*)').single();
       if (error) throw error;
       return res.status(200).json(normalizeApp(data));
     }
 
     if (req.method === 'DELETE') {
+      if (!(await requireAdmin(req, res))) return;
       const { id } = req.body || {};
       if (!id) return res.status(400).json({ error: 'id is required' });
       const { error } = await supabase.from('apps').delete().eq('id', id);
@@ -104,9 +92,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('apps api error:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }

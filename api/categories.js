@@ -1,4 +1,5 @@
 import supabase from './db-client.js';
+import { requireAdmin } from './_auth.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -8,27 +9,27 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name', { ascending: true });
+      const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
       if (error) throw error;
       return res.status(200).json(data ?? []);
     }
 
     if (req.method === 'POST') {
+      if (!(await requireAdmin(req, res))) return;
       const { name, slug, icon, color } = req.body || {};
       if (!name || !slug) return res.status(400).json({ error: 'name and slug required' });
-      const { data, error } = await supabase
-        .from('categories')
-        .insert({ name, slug, icon: icon ?? 'tag', color: color ?? '#7c3aed' })
-        .select()
-        .single();
+      const { data, error } = await supabase.from('categories').insert({
+        name,
+        slug,
+        icon: icon ?? 'tag',
+        color: color ?? '#7c3aed',
+      }).select().single();
       if (error) throw error;
       return res.status(201).json(data);
     }
 
     if (req.method === 'DELETE') {
+      if (!(await requireAdmin(req, res))) return;
       const { id } = req.body || {};
       if (!id) return res.status(400).json({ error: 'id required' });
       const { error } = await supabase.from('categories').delete().eq('id', id);
@@ -36,9 +37,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('categories api error:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }
