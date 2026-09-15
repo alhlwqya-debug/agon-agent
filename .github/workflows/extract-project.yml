@@ -1,0 +1,47 @@
+name: Extract project archive
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agon-agent-github-ready.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract project
+        run: |
+          rm -rf .tmp-project
+          mkdir .tmp-project
+          unzip -q agon-agent-github-ready.zip -d .tmp-project
+          if [ -d .tmp-project/agon-agent ]; then
+            shopt -s dotglob
+            cp -a .tmp-project/agon-agent/. .
+          else
+            shopt -s dotglob
+            cp -a .tmp-project/. .
+          fi
+          rm -rf .tmp-project
+          rm -f agon-agent-github-ready.zip
+          rm -f .github/workflows/extract-project.yml
+
+      - name: Commit extracted files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No extracted changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Extract initial project files'
+          git push
