@@ -1,0 +1,3 @@
+export interface Category { id: number; name: string; slug: string; icon: string; color: string; created_at?: string; }
+export interface App { id: number; slug: string; name: string; developer: string; short_description: string; description: string; category_id: number | null; version: string; size_mb: number; icon_url: string; screenshots: string[]; download_url: string; download_count: number; rating: number; reviews_count: number; system_requirements: string; tags: string[]; changelog: string; is_featured: boolean; is_hidden: boolean; created_at: string; updated_at: string; category?: Category; }
+export interface Review { id: number; app_id: number; user_name: string; rating: number; comment: string; created_at: string; }
