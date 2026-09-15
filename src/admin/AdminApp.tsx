@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '../contexts/AuthContext';
 import { ThemeProvider } from '../contexts/ThemeContext';
 import ProtectedRoute from '../components/ProtectedRoute';
@@ -10,13 +10,13 @@ export default function AdminApp() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <HashRouter>
+        <BrowserRouter>
           <Routes>
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin" element={<ProtectedRoute><AdminDashboardPage /></ProtectedRoute>} />
             <Route path="/admin/edit" element={<ProtectedRoute><AdminEditPage /></ProtectedRoute>} />
           </Routes>
-        </HashRouter>
+        </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
   );
